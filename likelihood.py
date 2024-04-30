@@ -1,10 +1,15 @@
 
 # for now this is very schematic but should work
+
+def get_responses(f):
+    # make them easy for now
+    return [np.ones_like(f)]*3 
+
 # could jax this
 def loglikelihood(data,params):
     # assume data is freq domain
-    residual = data - generate_resolvable_waveforms(params)
-    resp_A, resp_E, resp_T = get_responses() # these are sky-averaged for now?
+    residual = data - get_resolvable_waveforms(params)
+    resp_A, resp_E, resp_T = get_responses(f) # these are sky-averaged stochastic responses for now?
     unresoved_theoretical_psd = get_pop_psd(params)
     cov_A = noise_psdA + resp_A*unresoved_theoretical_psd
     cov_E = noise_psdE + resp_E*unresoved_theoretical_psd
