@@ -20,7 +20,10 @@ import os
 def run_gb_inference(datafile,outdir,snr_thresh=10, noise_amplitude=1e-21, noise_seed=0):
     ### load the data
     data = DataLoader(datafile)
-    
+
+    ### Get the true injected values
+    truths = data.population_parameters
+
     ## get the data frequencies
     waveform, times, sample_rate = data.strain, data.time, data.sample_rate
     noise = generate_time_domain_detector_noise(times, noise_amplitude, noise_seed=0)
