@@ -1,5 +1,5 @@
-*.pdf
 __pycache__/
+plots/
 .ipynb_checkpoints/
 datageneration/build/
 datageneration/datageneration.egg-info/
