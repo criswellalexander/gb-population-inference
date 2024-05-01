@@ -19,6 +19,18 @@ class Uniform(AbstractDistribution):
 		return u
 
 
+class Poisson(AbstractDistribution):
+    def __init__(self, lam):
+        self.lam = lam
+
+    def logpdf(self, k):
+        return k * np.log(self.lam) - self.lam - np.sum(np.log(np.arange(1, k + 1)))
+
+    def sample(self, size=1):
+        return np.random.poisson(self.lam, size)
+
+
+
 class TruncatedPowerLaw(AbstractDistribution):
 	def __init__(self, alpha, a, b):
 		self.alpha = alpha
