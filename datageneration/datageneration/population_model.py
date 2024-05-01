@@ -72,13 +72,14 @@ class PowerLawChirpPowerLawSeperation:
 
 		return ts, strain
 
-	def save_to_file(self, filename):
+	def save_to_file(self, filename, extra_parameters={}):
 		data = {'strain' : self.strain, 
 	            'time' : self.time, 
 	            'injected_population' : pd.DataFrame(self.samples_from_population), 
 	            'sample_rate' : self.sample_rate, 
 	            'duration': self.duration,
-	            'limits' : self.limits
+	            'limits' : self.limits,
+	            **extra_parameters
             }
 		
 		write_nested_to_hdf5(data, filename)

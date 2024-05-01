@@ -17,7 +17,14 @@ def write_nested_to_hdf5(data, filename):
                 subgroup = group.create_group(key)
                 for col_name, col_data in value.items():
                     subgroup.create_dataset(col_name, data=col_data)
+            elif isinstance(value, pd.Series):
+                value = pd.DataFrame({col : [val] for col,val in value.to_dict().items()})
+                subgroup = group.create_group(key)
+                for col_name, col_data in value.items():
+                    subgroup.create_dataset(col_name, data=col_data)
             elif isinstance(value, float):
+                group.attrs[key] = value
+            elif isinstance(value, int):
                 group.attrs[key] = value
 
     with h5py.File(filename, 'w') as f:
@@ -61,11 +68,13 @@ class DataLoader:
     def __post_init__(self):
         self.loaded_dict = read_hdf5_to_dict(self.filename)
         self.loaded_dict['injected_population'] = pd.DataFrame(self.loaded_dict['injected_population'])
+        self.loaded_dict['population_parameters'] = pd.DataFrame(self.loaded_dict['population_parameters'])
         self.__dict__.update(self.loaded_dict)
         self.strain = self.loaded_dict['strain']
         self.time = self.loaded_dict['time']
         self.injected_population = self.loaded_dict['injected_population']
         self.limits = self.loaded_dict['limits']
+        self.duration = self.loaded_dict['duration']
         
     def plot_psd(self):
         f, psd = calculate_psd(self.strain, self.time, self.sample_rate)
