@@ -28,10 +28,9 @@ class foreground():
 
     def psd(self, alpha, beta, Ntot):
 
-        
-        
+
+
         return psd
-    
 
     def get_pop_wts(self, alpha, beta):
 
@@ -46,21 +45,30 @@ class foreground():
 
         return jnp.exp(log_p_mc + log_p_r + log_p_d - self.base_population['log_priors'])
 
-    
     def _base_population(self):
 
-       
-        mc_draw = np.random.uniform(low=self.mc_min, high=self.mc_max, size=int(5e4)) 
-        r_draw = np.random.uniform(low=self.r_min, high=self.r_max, size=int(5e4))
-        d_draw = np.sqrt(self.d_min**2 + np.random.uniform(size=int(5e4)) * \
+        ndraw = int(5e4)
+        mc_draw = np.random.uniform(low=self.mc_min, high=self.mc_max, size=ndraw) 
+        r_draw = np.random.uniform(low=self.r_min, high=self.r_max, size=ndraw)
+        d_draw = np.sqrt(self.d_min**2 + np.random.uniform(size=ndraw) * \
                          (self.d_max**2 - self.d_min**2) )
 
         f_draw = self.calc_freqs(mc_draw, r_draw)
 
+
         A_draw = self.calc_amplitudes(mc_draw, f_draw, d_draw)
 
+
         base_population = {}
-    
+
+        # Sorting everything by amplitude ahead of masking by freq bin
+        sort_mask = np.argsort(A_draw)
+        A_draw = A_draw[sort_mask]
+        f_draw = f_draw[sort_mask]
+        mc_draw = mc_draw[sort_mask]
+        r_draw = r_draw[sort_mask]
+        d_draw = d_draw[sort_mask]
+
         base_population['mc'] = mc_draw
         base_population['r'] = r_draw
         base_population['d'] = d_draw
@@ -73,7 +81,15 @@ class foreground():
                                         np.log(2) + np.log(d_draw) - \
                                         np.log(self.d_max**2 - self.d_min**2) 
 
-        return base_population
+        # Masking by freq bin
+        fmask = np.zeros((len(fbins),ndraw))
+        for i in enumerate(fbins):
+            fub = self.fmins_ub[i[0]]
+            flb = self.fmins_lb[i[0]]
+            mask = (f_draw >= flb)*(f_draw < fub)
+            fmask[i[0]] = mask
+            #print(base_population['A'][mask])
+        return fmask, base_population
 
     def calc_freqs(self, mc, radius):
 
@@ -94,7 +110,8 @@ class foreground():
 
 
 if __name__ == "__main__":
-    fg = foreground(10)
+    fbins = (10**(np.linspace(-11,-6,10)))/u.s
+    fg = foreground(fbins)
 
 
 
