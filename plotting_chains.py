@@ -5,8 +5,9 @@ import pathlib
 import os
 import pandas as pd
 
-def plot_chains(Nresolved : int, chains, pop_param_labels : list[str] = [r'$\alpha$', r'$\beta$'], truths = [], plotfolder : str = 
+def plot_chains(chains, pop_param_labels : list[str] = [r'$\alpha$', r'$\beta$'], truths = [], plotfolder : str = 
 os.path.join(pathlib.Path(__file__).parent.absolute(),'plots') ):
+    Nresolved = ( chains.shape[1] - len(pop_param_labels) ) // 3
     labels = []
     for i in range(Nresolved):
         labels.extend([f'$A_{{{i}}}$', f'$f_{{{i}}}$', f'$\\phi_{{{i}}}$'])
@@ -29,4 +30,4 @@ if __name__ == '__main__':
     means = [1e-20,1e-3,0.5]*Nresolved + [1.0,1.0]
     cov = np.diag(1e-4*np.ones_like(means))
     fake_chains = multivariate_normal(mean=means,cov=cov,allow_singular = False).rvs(10000)
-    plot_chains(Nresolved, fake_chains, truths = means)
+    plot_chains(fake_chains, truths = means)
