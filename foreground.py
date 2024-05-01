@@ -83,12 +83,14 @@ class foreground():
 
         # Masking by freq bin
         fmask = np.zeros((len(fbins),ndraw))
+        import pdb
+        pdb.set_trace()
         for i in enumerate(fbins):
             fub = self.fmins_ub[i[0]]
             flb = self.fmins_lb[i[0]]
             mask = (f_draw >= flb)*(f_draw < fub)
             fmask[i[0]] = mask
-            #print(base_population['A'][mask])
+            print(base_population['A'][mask])
         return fmask, base_population
 
     def calc_freqs(self, mc, radius):
