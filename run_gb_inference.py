@@ -6,6 +6,7 @@ Created on Wed May  1 12:21:28 2024
 """
 
 ## imports
+from .datageneration import DataLoader
 import foreground
 from datageneration import load_data ## or whatever 
 from joint_likelihood import init_engine
@@ -18,11 +19,13 @@ import os
 
 def run_gb_inference(datafile,outdir,snr_thresh=10):
     ### load the data
-    ## Asad will write a thing to do this
-    data = load_data(datafile)
+    data = DataLoader(datafile)
     
     ## get the data frequencies
-    fbins = data.fs
+    strain, times, sample_rate = data.strain, data.time, data.sample_rate
+    fbins, fft_data = get_rfft(data, times, sample_rate)
+
+    print(fbins)
     
     
     ## initialize the population model
