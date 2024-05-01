@@ -67,6 +67,8 @@ class PowerLawChirpPowerLawSeperation:
 		ts, waveforms = self.waveform.generate_waveforms(self.samples_from_population, sample_rate=sample_rate, duration=duration)
 		strain = waveforms.sum(axis=-1)
 
+		self.samples_from_population = self.waveform.compute_waveform_parameters(self.samples_from_population, in_place=True)
+
 		self.time, self.strain = ts, strain
 		self.sample_rate, self.duration, self.N_white_dwarfs = sample_rate, duration, N_white_dwarfs
 
