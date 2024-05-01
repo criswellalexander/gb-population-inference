@@ -27,7 +27,7 @@ class Likelihood(object):
 
 
 def run_model(frequency_array, fft_data, detector_noise_psd, duration, Nres):
-    frequency_array, fft_data, detector_noise_psd, duration = map(jnp.array, (frequencies, fft_data, detector_noise_psd, duration))
+    frequency_array, fft_data, detector_noise_psd, duration = map(jnp.array, (frequency_array, fft_data, detector_noise_psd, duration))
     
     likelihood = Likelihood(frequency_array, fft_data, detector_noise_psd, duration)
     
@@ -45,7 +45,7 @@ def run_model(frequency_array, fft_data, detector_noise_psd, duration, Nres):
     
     for i in range(Nres):
         resolved_frequencies[i] = numpyro.sample(f'frequency_{i}', dist.Uniform(fmin_here, fmax))
-        fmin_here = frequencies[i]
+        fmin_here = resolved_frequencies[i]
         amplitudes[i] = numpyro.sample(f'amplitude_{i}',  dist.Uniform(ampmin, ampmax))
         phases[i] = numpyro.sample(f'phase_{i}',  dist.Uniform(0, 2*np.pi))
         
