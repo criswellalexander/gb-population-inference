@@ -9,10 +9,6 @@ write functions here to load in the data and the noise psd
 
 """
 
-fmin =
-fmax = 
-
-
 class Likelihood(object):
     def __init__(self, frequencies, fft_data, detector_noise_psd, duration):
         self.parameters = dict()
@@ -30,28 +26,30 @@ class Likelihood(object):
         return -jnp.sum(2 * jnp.abs(resolved_strain - fft_data)**2 / (self.duration * total_psd)) - jnp.sum(jnp.log(np.pi * total_psd * self.duration))
 
 
-def run_model(frequencies, fft_data, detector_noise_psd, duration, Nres):
-    frequencies, fft_data, detector_noise_psd, duration = map(jnp.array, (frequencies, fft_data, detector_noise_psd, duration))
+def run_model(frequency_array, fft_data, detector_noise_psd, duration, Nres):
+    frequency_array, fft_data, detector_noise_psd, duration = map(jnp.array, (frequencies, fft_data, detector_noise_psd, duration))
     
-    likelihood = Likelihood(frequencies, fft_data, detector_noise_psd, duration)
+    likelihood = Likelihood(frequency_array, fft_data, detector_noise_psd, duration)
     
     sample = dict()
     
     sample['alpha'] = numpyro.sample('alpha', dist.Uniform(-5, 5))
     sample['beta'] = numpyro.sample('beta', dist.Uniform(-5, 5))
     
-    frequencies = jnp.zeros(Nres)
+    resolved_frequencies = jnp.zeros(Nres)
     phases = jnp.zeros(Nres)
     amplitudes = jnp.zeros(Nres)
     
-    fmin_here = fmin
+    fmin_here = frequency_array[0]
+    fmax = frequency_array[-1]
+    
     for i in range(Nres):
-        frequencies[i] = numpyro.sample(f'frequency_{i}', dist.Uniform(fmin_here, fmax))
+        resolved_frequencies[i] = numpyro.sample(f'frequency_{i}', dist.Uniform(fmin_here, fmax))
         fmin_here = frequencies[i]
         amplitudes[i] = numpyro.sample(f'amplitude_{i}',  dist.Uniform(ampmin, ampmax))
         phases[i] = numpyro.sample(f'phase_{i}',  dist.Uniform(0, 2*np.pi))
         
-    sample['frequencies'] = frequencies
+    sample['frequencies'] = resolved_frequencies
     sample['phases'] = phases
     sample['amplitudes'] = amplitudes
     sample['N_total'] = numpyro.sample('N_total', dist.Uniform(Nres * 100, Nres * 10000))
