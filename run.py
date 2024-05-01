@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import numpyro
 import numpyro.distributions as dist
+from utils import get_resolved_signals
 
 """
 
@@ -18,19 +19,17 @@ class Likelihood(object):
         self.deltaF = frequencies[1] - frequencies[0]
         self.deltaT = 1/self.deltaF
         self.time_array = jnp.arange(0, self.duration, self.deltaT)
+        self.frequencies = frequencies
         
     def log_likelihood(self):
-        resolved_strain = get_resolved_signals(self.parameters, self.time_array)
+        resolved_strain = get_resolved_signals(self.parameters, self.time_array, self.frequencies[-1]*2)
         unresolved_psd = get_unresolved_psd(self.parameters, self.frequencies, self.detector_noise_psd, self.Nres)
-        total_psd = detector_noise_psd + unresolved_psd
-        return -jnp.sum(2 * jnp.abs(resolved_strain - fft_data)**2 / (self.duration * total_psd)) - jnp.sum(jnp.log(np.pi * total_psd * self.duration))
+        total_psd = self.detector_noise_psd + unresolved_psd
+        return -jnp.sum(2 * jnp.abs(resolved_strain - self.fft_data)**2 / (self.duration * total_psd)) - jnp.sum(jnp.log(np.pi * total_psd * self.duration))
 
 
-def run_model(frequency_array, fft_data, detector_noise_psd, duration, Nres):
-    frequency_array, fft_data, detector_noise_psd, duration = map(jnp.array, (frequency_array, fft_data, detector_noise_psd, duration))
-    
-    likelihood = Likelihood(frequency_array, fft_data, detector_noise_psd, duration)
-    
+def run_model(likelihood, Nres, ampmin=0, ampmax=10):
+
     sample = dict()
     
     sample['alpha'] = numpyro.sample('alpha', dist.Uniform(-5, 5))
@@ -40,14 +39,14 @@ def run_model(frequency_array, fft_data, detector_noise_psd, duration, Nres):
     phases = jnp.zeros(Nres)
     amplitudes = jnp.zeros(Nres)
     
-    fmin_here = frequency_array[0]
-    fmax = frequency_array[-1]
+    fmin_here = likelihood.frequencies[0]
+    fmax = likelihood.frequencies[-1]
     
     for i in range(Nres):
-        resolved_frequencies[i] = numpyro.sample(f'frequency_{i}', dist.Uniform(fmin_here, fmax))
+        resolved_frequencies.at[i].set(numpyro.sample(f'frequency_{i}', dist.Uniform(fmin_here, fmax)))
         fmin_here = resolved_frequencies[i]
-        amplitudes[i] = numpyro.sample(f'amplitude_{i}',  dist.Uniform(ampmin, ampmax))
-        phases[i] = numpyro.sample(f'phase_{i}',  dist.Uniform(0, 2*np.pi))
+        amplitudes.at[i].set(numpyro.sample(f'amplitude_{i}',  dist.Uniform(ampmin, ampmax)))
+        phases.at[i].set(numpyro.sample(f'phase_{i}',  dist.Uniform(0, 2*np.pi)))
         
     sample['frequencies'] = resolved_frequencies
     sample['phases'] = phases

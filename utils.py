@@ -2,6 +2,11 @@ import jax.numpy as jnp
 import numpy as np
 from scipy.signal import welch
 
+def get_resolved_signals(parameters, time_array, sample_rate):
+    time_domain_signal = construct_full_signal(parameters['amplitudes'], parameters['frequencies'], parameters['phases'], time_array)
+    _, frequency_domain_signal = get_rfft(time_domain_signal, time_array, sample_rate)
+    return frequency_domain_signal
+
 def get_rfft(data, times, sample_rate):
     return jnp.fft.rfftfreq(data.size, d=1/sample_rate), jnp.fft.rfft(data, norm="backward")
 
