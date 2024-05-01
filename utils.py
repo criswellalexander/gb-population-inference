@@ -14,8 +14,8 @@ def construct_full_signal(amps, freqs, phases, times):
     total_signal = jnp.sum(signals, axis=-1)
     return total_signal
 
-def generate_time_domain_detector_noise(time_array, noise_amplitude):
-    noise = np.random.randn(time_array.size) * noise_amplitude
+def generate_time_domain_detector_noise(time_array, noise_amplitude, noise_seed=0):
+    noise = np.random.randn(time_array.size, ) * noise_amplitude
     return noise
 
 def generate_detector_noise_psd(sample_rate, duration, noise_amplitude):

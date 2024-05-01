@@ -6,9 +6,9 @@ Created on Wed May  1 12:21:28 2024
 """
 
 ## imports
-from .datageneration import DataLoader
 import foreground
-from datageneration import load_data ## or whatever 
+from .datageneration import DataLoader
+from .utils import generate_time_domain_detector_noise
 from joint_likelihood import init_engine
 from plotting_chains import plot_chains
 import argparse
@@ -17,15 +17,16 @@ import os
 ## NEED TO ALSO IMPORT THE LIKELIHOOD CODE
 
 
-def run_gb_inference(datafile,outdir,snr_thresh=10):
+def run_gb_inference(datafile,outdir,snr_thresh=10, noise_amplitude=1e-21, noise_seed=0):
     ### load the data
     data = DataLoader(datafile)
     
     ## get the data frequencies
-    strain, times, sample_rate = data.strain, data.time, data.sample_rate
-    fbins, fft_data = get_rfft(data, times, sample_rate)
+    waveform, times, sample_rate = data.strain, data.time, data.sample_rate
+    noise = generate_time_domain_detector_noise(times, noise_amplitude, noise_seed=0)
+    strain = waveform + noise
 
-    print(fbins)
+    fbins, fft_data = get_rfft(strain, times, sample_rate)
     
     
     ## initialize the population model
