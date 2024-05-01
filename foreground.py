@@ -30,10 +30,18 @@ class foreground():
 
         wts = self.get_pop_wts(alpha, beta)
 
+        wts2 = wts[self.fmask]
+
         nunresolved = Ntot - self.nresolved
 
-
         import pdb; pdb. set_trace()
+
+
+        prop_factor = Ntot * jnp.sum()
+
+        prop_factor = Ntot * self.fmask.sum(axis=1) / self.fmax.sum()
+        
+
 
         return psd
 
@@ -48,7 +56,14 @@ class foreground():
         log_p_d = jnp.log(2) + jnp.log(self.base_population['d']) - \
         jnp.log(jnp.power(self.d_max, 2) - jnp.power(self.d_min, 2)) 
 
-        return jnp.exp(log_p_mc + log_p_r + log_p_d - self.base_population['log_priors'])
+        wts =  jnp.exp(log_p_mc + log_p_r + log_p_d - self.base_population['log_priors']) 
+
+        wts = wts / jnp.sum(wts) * self.base_population['r'].size
+
+
+        return wts
+
+
 
     def _base_population(self):
 
@@ -58,7 +73,7 @@ class foreground():
         d_draw = np.sqrt(self.d_min**2 + np.random.uniform(size=ndraw) * \
                          (self.d_max**2 - self.d_min**2) )
 
-        f_draw = self.calc_freqs(mc_draw, r_draw)
+        f_draw = self.calc_freqs(mc_draw, r_draw).value
 
 
         A_draw = self.calc_amplitudes(mc_draw, f_draw, d_draw)
@@ -78,7 +93,7 @@ class foreground():
         base_population['r'] = r_draw
         base_population['d'] = d_draw
         base_population['A'] = A_draw.value
-        base_population['f'] = f_draw.value
+        base_population['f'] = f_draw
        
         base_population['log_priors'] =  - np.log(self.mc_max - self.mc_min) - \
                                         np.log(self.r_max - self.r_min) - \
@@ -86,12 +101,12 @@ class foreground():
                                         np.log(self.d_max**2 - self.d_min**2) 
 
         # Masking by freq bin
-        fmask = np.zeros((len(fbins),ndraw))
-        for i in enumerate(fbins):
-            fub = self.fmins_ub[i[0]]
-            flb = self.fmins_lb[i[0]]
+        fmask = np.zeros((len(fbins),ndraw), dtype='int')
+        for i, fbin in enumerate(fbins):
+            fub = self.fmins_ub[i]
+            flb = self.fmins_lb[i]
             mask = (f_draw >= flb)*(f_draw < fub)
-            fmask[i[0]] = mask
+            fmask[i] = mask
             #print(base_population['A'][mask])
         return fmask, base_population
 
@@ -114,7 +129,8 @@ class foreground():
 
 
 if __name__ == "__main__":
-    fbins = (10**(np.linspace(-5,-2,10)))/u.s
+    #fbins = (10**(np.linspace(-5,-2,10)))/u.s
+    fbins = np.linspace(1e-4, 1e-2, 50) 
     fg = foreground(fbins)
     fg.psd(-2, -1.5, 2000)
 
