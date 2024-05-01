@@ -1,19 +1,19 @@
-# -*- coding: utf-8 -*-
+#!/bin/env python3
 """
 Created on Wed May  1 12:21:28 2024
 
-@author: Alexander
+@author: Alexander W. Criswell
 """
 
-
-import noise
-import likelihood
+## imports
 import foreground
 from datageneration import load_data ## or whatever 
 from joint_likelihood import init_engine
 import plotting_chains
 import argparse
 import os
+
+## NEED TO ALSO IMPORT THE LIKELIHOOD CODE
 
 
 def run_gb_inference(datafile,outdir,snr_thresh=10):
@@ -29,15 +29,17 @@ def run_gb_inference(datafile,outdir,snr_thresh=10):
     gb_pop_model = foreground.Foreground(fbins,snr_thresh=snr_thresh)
     
     ## intialize the sampler
+    args = [] ## fill in sampling args
     engine = init_engine(*args)
     
     ## run the sampler
-    
+    end_state = engine.run_mcmc()
     
     ## get the samples
     samples = engine.get_samples()
     
     ## generate plots
+    kwargs = {} ## fill in plotting dict
     plotting_chains(samples,outdir,**kwargs)
     
     
