@@ -9,7 +9,7 @@ Created on Wed May  1 12:21:28 2024
 import foreground
 from datageneration import load_data ## or whatever 
 from joint_likelihood import init_engine
-import plotting_chains
+from plotting_chains import plot_chains
 import argparse
 import os
 
@@ -39,8 +39,9 @@ def run_gb_inference(datafile,outdir,snr_thresh=10):
     samples = engine.get_samples()
     
     ## generate plots
-    kwargs = {} ## fill in plotting dict
-    plotting_chains(samples,outdir,**kwargs)
+    kwargs = {truths = [], #TODO: truth values of resolved GBs + population params
+              plotdir = outdir} ## fill in plotting dict
+    plot_chains(samples,**kwargs)
     
     
     
