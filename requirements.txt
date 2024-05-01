@@ -2,3 +2,7 @@ lisaanalysistools
 numpy
 scipy
 matplotlib
+chainconsumer
+h5py
+pandas
+tqdm
