@@ -22,16 +22,17 @@ class foreground():
 
     def psd(self, alpha, beta, Ntot):
 
-        
-        
+
+
         return psd
-    
-    
+
+
     def _base_population(self):
 
         ## mc : 0.5 - 1.4:
-        mc_draw = np.random.uniform(low=0.5, high=1.4, size=int(5e4)) * gmsun / Gnewton
-        r_draw = np.random.uniform(low=1, high=50, size=int(5e4)) * au
+        ndraw = int(5e4)
+        mc_draw = np.random.uniform(low=0.5, high=1.4, size=ndraw) * gmsun / Gnewton
+        r_draw = np.random.uniform(low=1, high=50, size=ndraw) * au
 
         ## dl = 1 - 50 kpc
         d_draw = np.sqrt(1**2 + np.random.uniform(size=int(5e4)) * \
@@ -41,16 +42,34 @@ class foreground():
 
         f_draw = self.calc_freqs(mc_draw, r_draw)
 
+
         A_draw = self.calc_amplitudes(mc_draw, f_draw, d_draw)
 
+
         base_population = {}
-    
+
+        # Sorting everything by amplitude ahead of masking by freq bin
+        sort_mask = np.argsort(A_draw)
+        A_draw = A_draw[sort_mask]
+        f_draw = f_draw[sort_mask]
+        mc_draw = mc_draw[sort_mask]
+        r_draw = r_draw[sort_mask]
+        d_draw = d_draw[sort_mask]
+
         base_population['mc'] = mc_draw
         base_population['r'] = r_draw
         base_population['d'] = d_draw
         base_population['A'] = A_draw
 
-        return base_population
+        # Masking by freq bin
+        fmask = np.zeros((len(fbins),ndraw))
+        for i in enumerate(fbins):
+            fub = self.fmins_ub[i[0]]
+            flb = self.fmins_lb[i[0]]
+            mask = (f_draw >= flb)*(f_draw < fub)
+            fmask[i[0]] = mask
+            #print(base_population['A'][mask])
+        return fmask, base_population
 
     def calc_freqs(self, mc, r):
 
@@ -65,7 +84,8 @@ class foreground():
 
 
 if __name__ == "__main__":
-    fg = foreground()
+    fbins = (10**(np.linspace(-11,-6,10)))/u.s
+    fg = foreground(fbins)
 
 
 
