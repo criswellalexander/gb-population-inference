@@ -54,6 +54,7 @@ def run_model(frequencies, fft_data, detector_noise_psd, duration, Nres):
     sample['frequencies'] = frequencies
     sample['phases'] = phases
     sample['amplitudes'] = amplitudes
+    sample['N_total'] = numpyro.sample('N_total', dist.Uniform(Nres * 100, Nres * 10000))
     
     likelihood.parameters.update(sample)
     
