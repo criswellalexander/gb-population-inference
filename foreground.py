@@ -11,49 +11,69 @@ xp = np
 class foreground():
 
 
-    def __init__(self, fbins, snr_thresh=10):
+    def __init__(self, fbins, nresovled=5, snr_thresh=10):
         self.snr_thresh = snr_thresh
         self.fbins = fbins
         self.delf = fbins[1] - fbins[0]
         self.fmins_ub = fbins + 0.5*self.delf
         self.fmins_lb = fbins - 0.5*self.delf
-
+        self.nresolved = nresovled
 
         self.mc_min, self.mc_max = 0.5, 1.5 ## in solar masses
         self.r_min, self.r_max =  3.34e-4, 1.3e-2 ## in AU
         self.d_min, self.d_max = 1, 50 ## in kpc
 
-        self.base_population = self._base_population()
+        self.fmask, self.base_population = self._base_population()
 
 
     def psd(self, alpha, beta, Ntot):
 
+        wts = self.get_pop_wts(alpha, beta)
+
+        wts2 = wts[self.fmask]
+
+        nunresolved = Ntot - self.nresolved
+
+        import pdb; pdb. set_trace()
+
+
+        prop_factor = Ntot * jnp.sum()
+
+        prop_factor = Ntot * self.fmask.sum(axis=1) / self.fmax.sum()
+        
 
 
         return psd
 
     def get_pop_wts(self, alpha, beta):
 
-        log_p_mc = jnp.log(alpha + 1) + alpha * jnp.log(self.base_population['mc']) - \
-        jnp.log( jnp.power(self.mc_max, alpha + 1) - jnp.power(self.mc_min, alpha + 1))
+        log_p_mc = jnp.log(jnp.abs(alpha + 1)) + alpha * jnp.log(self.base_population['mc']) - \
+        jnp.log(jnp.abs(jnp.power(self.mc_max, alpha + 1) - jnp.power(self.mc_min, alpha + 1)))
 
-        log_p_r  = jnp.log(beta + 1) + beta * jnp.log(self.base_population['r']) - \
-        jnp.log( jnp.power(self.r_max, beta + 1) - jnp.power(self.r_min, beta + 1))
+        log_p_r  = jnp.log(jnp.abs(beta + 1)) + beta * jnp.log(self.base_population['r']) - \
+        jnp.log(jnp.abs(jnp.power(self.r_max, beta + 1) - jnp.power(self.r_min, beta + 1)))
 
         log_p_d = jnp.log(2) + jnp.log(self.base_population['d']) - \
         jnp.log(jnp.power(self.d_max, 2) - jnp.power(self.d_min, 2)) 
 
-        return jnp.exp(log_p_mc + log_p_r + log_p_d - self.base_population['log_priors'])
+        wts =  jnp.exp(log_p_mc + log_p_r + log_p_d - self.base_population['log_priors']) 
+
+        wts = wts / jnp.sum(wts) * self.base_population['r'].size
+
+
+        return wts
+
+
 
     def _base_population(self):
 
-        ndraw = int(5e4)
+        ndraw = int(1e5)
         mc_draw = np.random.uniform(low=self.mc_min, high=self.mc_max, size=ndraw) 
         r_draw = np.random.uniform(low=self.r_min, high=self.r_max, size=ndraw)
         d_draw = np.sqrt(self.d_min**2 + np.random.uniform(size=ndraw) * \
                          (self.d_max**2 - self.d_min**2) )
 
-        f_draw = self.calc_freqs(mc_draw, r_draw)
+        f_draw = self.calc_freqs(mc_draw, r_draw).value
 
 
         A_draw = self.calc_amplitudes(mc_draw, f_draw, d_draw)
@@ -72,9 +92,8 @@ class foreground():
         base_population['mc'] = mc_draw
         base_population['r'] = r_draw
         base_population['d'] = d_draw
-        base_population['A'] = A_draw
-        base_population['f'] = f_draw.value
-
+        base_population['A'] = A_draw.value
+        base_population['f'] = f_draw
        
         base_population['log_priors'] =  - np.log(self.mc_max - self.mc_min) - \
                                         np.log(self.r_max - self.r_min) - \
@@ -82,12 +101,12 @@ class foreground():
                                         np.log(self.d_max**2 - self.d_min**2) 
 
         # Masking by freq bin
-        fmask = np.zeros((len(fbins),ndraw))
-        for i in enumerate(fbins):
-            fub = self.fmins_ub[i[0]]
-            flb = self.fmins_lb[i[0]]
+        fmask = np.zeros((len(fbins),ndraw), dtype='int')
+        for i, fbin in enumerate(fbins):
+            fub = self.fmins_ub[i]
+            flb = self.fmins_lb[i]
             mask = (f_draw >= flb)*(f_draw < fub)
-            fmask[i[0]] = mask
+            fmask[i] = mask
             #print(base_population['A'][mask])
         return fmask, base_population
 
@@ -110,8 +129,11 @@ class foreground():
 
 
 if __name__ == "__main__":
-    fbins = (10**(np.linspace(-11,-6,10)))/u.s
+    #fbins = (10**(np.linspace(-5,-2,10)))/u.s
+    fbins = np.linspace(1e-4, 1e-2, 50) 
     fg = foreground(fbins)
+    fg.psd(-2, -1.5, 2000)
+
 
 
 
