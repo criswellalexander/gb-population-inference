@@ -26,7 +26,7 @@ class Poisson(AbstractDistribution):
     def logpdf(self, k):
         return k * np.log(self.lam) - self.lam - np.sum(np.log(np.arange(1, k + 1)))
 
-    def sample(self, size=1):
+    def sample(self, size=tuple()):
         return np.random.poisson(self.lam, size)
 
 

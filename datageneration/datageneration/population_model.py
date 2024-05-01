@@ -34,6 +34,7 @@ class PowerLawChirpPowerLawSeperation:
 	limits : Dict[str, List] = field(default_factory = lambda : {k:v.copy() for k,v in DEFAULT_RANGES.items()})
 	distance_power_law_index : int = 1
 	waveform : AbstractWaveform = field(default_factory = lambda : SineWDSignal)
+	poisson : bool = False
 
 	def __post_init__(self):
 		def create_distribution(Lambda : Dict[str, float]):
@@ -49,6 +50,8 @@ class PowerLawChirpPowerLawSeperation:
 		return {key : dist.sample(size) for key,dist in self.distribution_func(Lambda).items()}
 
 	def generate_time_series(self, Lambda : Dict[str, float], N_white_dwarfs=1000, **kwargs):
+		if self.poisson:
+			N_white_dwarfs = Poisson(N_white_dwarfs).sample()
 		self._PopulationInjection = self.generate_samples(Lambda, size=N_white_dwarfs)
 		ts, waveforms = self.waveform.generate_waveforms(self._PopulationInjection, **kwargs)
 		return ts, waveforms.sum(axis=-1)
@@ -60,5 +63,38 @@ class PowerLawChirpPowerLawSeperation:
 		plt.ylabel(r"strain")
 		plt.grid(alpha=0.3)
 		plt.show()
+
+
+
+@dataclass
+class WhiteDwarfDistribution:
+	distribution_function : Dict[str, Any]
+	distance_power_law_index : int = 1
+	waveform : AbstractWaveform = field(default_factory = lambda : SineWDSignal)
+	poisson : bool = False
+
+	def generate_samples(self, Lambda : Dict[str, float], size=1):
+		return {key : dist.sample(size) for key,dist in self.distribution_function(Lambda).items()}
+
+	def generate_time_series(self, Lambda : Dict[str, float], N_white_dwarfs=1000, **kwargs):
+		if self.poisson:
+			N_white_dwarfs = Poisson(N_white_dwarfs).sample()
+		self._PopulationInjection = self.generate_samples(Lambda, size=N_white_dwarfs)
+		ts, waveforms = self.waveform.generate_waveforms(self._PopulationInjection, **kwargs)
+		return ts, waveforms.sum(axis=-1)
+
+	def plot_time_series(self, ts, Ys):
+		fig, ax = plt.subplots(dpi=150)
+		plt.plot(ts, Ys)
+		plt.xlabel(r"$t (s)$")
+		plt.ylabel(r"strain")
+		plt.grid(alpha=0.3)
+		plt.show()
+
+
+
+
+
+
 
 

@@ -31,7 +31,8 @@ limits = {'chirp_mass':          [0.5, 1.4],  # In solar masses
 ## Instantiate the population distribution object
 
 dist = PowerLawChirpPowerLawSeperation(limits=limits, 
-                                       distance_power_law_index=1)   # p(d) ~ d
+                                       distance_power_law_index=1,   # p(d) ~ d
+                                       poisson=True) 			     # Total Number of sources should be drawn from poisson distribution
 ```
 
 Now lets generate some samples from the above distribution
@@ -56,7 +57,7 @@ pd.DataFrame(dist.generate_samples(Lambda, size=10))
 |  8 |     1.20729  |     0.653881 |               21.1689 | 0.489138 |
 |  9 |     1.14561  |     0.75272  |               30.8705 | 3.76648  |
 
-We can also generate a waveform with exactly `1_000` White Dwarfs drawn from the above distribution.
+We can also generate a waveform with a large number of White Dwarfs drawn from the above distribution. In this case, we draw from a poisson distribution with mean `1000` to get the number sources actually produced to make up the signal.
 
 ```python
 Lambda = {'alpha' : 3.0, 'beta' : -2.0}
@@ -65,3 +66,44 @@ dist.plot_time_series(ts, strain)
 ```
 
 ![Alt text](./imgs/waveform_sample.png)
+
+
+# Custom Distributions:
+You can also create your own distributions
+
+```python
+from datageneration import TruncatedPowerLaw, Uniform, Poisson, WhiteDwarfDistribution, SinosoidWaveform
+import numpy as np
+
+### Define a custom white dwarf population model. 
+
+
+# Ingredient 1: Waveform model; The response of 1 single WD system. e.g. Sinosoid
+# Give the amplitude, frequency and phase as a function of the system's parameters (A_0, d, f, phi)
+waveform = SinosoidWaveform(
+                            amplitude_model= lambda A_0,d : A_0/d,
+                            frequency_model= lambda f : f,
+                            phase_model= lambda phi : phi
+                            )
+
+# Ingredient 2: Population distribution; The distribution of system parameters in the universe
+# Define a function that takes in a dictionary of hyper parameters (A_0 and alpha_f) and outputs a dictionary of distributions
+def distribution_function(Lambda):
+    return dict(A_0 = Uniform(0,Lambda['A_0']),
+                  d = TruncatedPowerLaw(2,1,50),
+                  f = TruncatedPowerLaw(Lambda['alpha_f'],10,100),
+                phi=Uniform(0,2*np.pi))
+
+
+# Put it together and instantiate the object
+dist = WhiteDwarfDistribution(distribution_function=distribution_function,
+                              waveform=waveform, poisson=False)
+
+```
+
+Now we can generate a waveform for this too
+
+```python
+t, strain = dist.generate_time_series({'A_0' : 3.0, 'alpha_f': -3.0}, N_white_dwarfs=1000, sample_rate=0.25, duration=1000)
+dist.plot_time_series(t, strain)
+```
