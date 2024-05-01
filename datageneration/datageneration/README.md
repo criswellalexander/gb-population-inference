@@ -107,3 +107,5 @@ Now we can generate a waveform for this too
 t, strain = dist.generate_time_series({'A_0' : 3.0, 'alpha_f': -3.0}, N_white_dwarfs=1000, sample_rate=0.25, duration=1000)
 dist.plot_time_series(t, strain)
 ```
+
+![Alt text](./imgs/waveform_custom.png)
