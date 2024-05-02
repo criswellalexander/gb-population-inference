@@ -23,7 +23,7 @@ class foreground():
         self.mc_min, self.mc_max = 0.5, 1.5 ## in solar masses
         self.r_min, self.r_max =  3.34e-4, 1.3e-2 ## in AU
         self.d_min, self.d_max = 1, 50 ## in kpc
-        self.ndraw = int(1e4)
+        self.ndraw = int(1e5)
 
 
         self.fmask, self.base_population = self._base_population()
@@ -35,9 +35,7 @@ class foreground():
 
         nunresolved = Ntot - self.nresolved
 
-
-        Fij = self.base_population['A'] / (self.noisePSD[:, None] + \
-                                           jnp.cumsum(wts * self.base_population['A'], axis=1))
+        Nij = [self.calc_Nij(self.base_population['A'][i], self.noisePSD[i], wt) for i, wt in enumerate(wts)]
 
         import pdb; pdb.set_trace()
 
@@ -51,6 +49,30 @@ class foreground():
 
     def get_pop_wts(self, alpha, beta):
 
+        log_p_mc_constant = jnp.log(jnp.abs(alpha + 1)) - \
+        jnp.log(jnp.abs(jnp.power(self.mc_max, alpha + 1) - jnp.power(self.mc_min, alpha + 1)))
+
+        log_p_r_constant = jnp.log(jnp.abs(beta + 1)) -  \
+        jnp.log(jnp.abs(jnp.power(self.r_max, beta + 1) - jnp.power(self.r_min, beta + 1)))
+
+        log_p_d_constant = jnp.log(2) - jnp.log(jnp.power(self.d_max, 2) - jnp.power(self.d_min, 2))
+
+
+        log_p_mc = [log_p_mc_constant + alpha * jnp.log(mc) for mc in self.base_population['mc']]
+        log_p_r = [log_p_r_constant + beta * jnp.log(r) for r in self.base_population['r']]
+        log_p_d = [log_p_d_constant + jnp.log(d) for d in self.base_population['d']]
+
+        log_wts = [log_p_mc[i] + log_p_r[i] + log_p_d[i] - self.base_population['log_prior'][i] for i, mc in enumerate(log_p_mc)]
+
+        wts = [jnp.exp(log_wt) for log_wt in log_wts]
+
+        wt_sum = [jnp.sum(wt) for wt in wts]
+        wt_sum = np.sum(wt_sum)   
+
+        wts = [wt/wt_sum for wt in wts]     
+
+
+        """
         log_p_mc = jnp.log(jnp.abs(alpha + 1)) + alpha * jnp.log(self.base_population['mc']) - \
         jnp.log(jnp.abs(jnp.power(self.mc_max, alpha + 1) - jnp.power(self.mc_min, alpha + 1)))
 
@@ -68,7 +90,7 @@ class foreground():
 
 
         wts = wts / jnp.sum(wts)
-
+        """
 
         return wts
 
@@ -97,27 +119,42 @@ class foreground():
         r_draw = r_draw[sort_mask]
         d_draw = d_draw[sort_mask]
 
+
+        fmask = []
+        mc_sorted = []
+        r_sorted = []
+        d_sorted = []
+        A_sorted = []
+        f_sorted = []
+
         # Masking by freq bin
-        fmask = np.zeros((len(fbins), self.ndraw), dtype='int')
-        mc_sorted = np.zeros((len(fbins),self.ndraw))
-        r_sorted = np.zeros((len(fbins),self.ndraw))
-        d_sorted = np.zeros((len(fbins),self.ndraw))
-        A_sorted = np.zeros((len(fbins),self.ndraw))
-        f_sorted = np.zeros((len(fbins),self.ndraw))
+        # fmask = np.zeros((len(fbins), self.ndraw), dtype='int')
+        #mc_sorted = np.zeros((len(fbins),self.ndraw))
+        #r_sorted = np.zeros((len(fbins),self.ndraw))
+        #d_sorted = np.zeros((len(fbins),self.ndraw))
+        #A_sorted = np.zeros((len(fbins),self.ndraw))
+        #f_sorted = np.zeros((len(fbins),self.ndraw))
 
         for i, fbin in enumerate(fbins):
             fub = self.fmins_ub[i]
             flb = self.fmins_lb[i]
             mask = (f_draw >= flb)*(f_draw < fub)
 
-            if mask.sum() > 0:
-                mc_sorted[i, -mask.sum():] = mc_draw[mask]
-                r_sorted[i, -mask.sum():] = r_draw[mask]
-                d_sorted[i, -mask.sum():] = d_draw[mask]
-                A_sorted[i, -mask.sum():] = A_draw[mask]
-                f_sorted[i, -mask.sum():] = f_draw[mask]
+            mc_sorted.append(mc_draw[mask])
+            r_sorted.append(r_draw[mask])
+            d_sorted.append(d_draw[mask])
+            A_sorted.append(A_draw[mask])
+            f_sorted.append(f_draw[mask])
+            fmask.append(mask)
 
-            fmask[i] = mask
+            #fmask[i] = mask
+            #if mask.sum() > 0:
+            #    mc_sorted[i, -mask.sum():] = mc_draw[mask]
+            #    r_sorted[i, -mask.sum():] = r_draw[mask]
+            #    d_sorted[i, -mask.sum():] = d_draw[mask]
+            #    A_sorted[i, -mask.sum():] = A_draw[mask]
+            #    f_sorted[i, -mask.sum():] = f_draw[mask]
+
             #print(base_population['A'][mask])
 
         base_population['mc'] = mc_sorted
@@ -126,10 +163,20 @@ class foreground():
         base_population['A'] = A_sorted
         base_population['f'] = f_sorted
 
-        base_population['log_priors'] =  - np.log(self.mc_max - self.mc_min) - \
-                                        np.log(self.r_max - self.r_min) - \
-                                        np.log(2) + np.log(d_sorted) - \
-                                        np.log(self.d_max**2 - self.d_min**2)
+        log_prior_constant =  - np.log(self.mc_max - self.mc_min) - \
+                                np.log(self.r_max - self.r_min) - \
+                                np.log(2)  - np.log(self.d_max**2 - self.d_min**2)
+
+        base_population['log_prior'] = [log_prior_constant + jnp.log(dl) for dl in d_sorted]
+
+
+
+
+
+        #base_population['log_priors'] =  - np.log(self.mc_max - self.mc_min) - \
+        #                                np.log(self.r_max - self.r_min) - \
+        #                                np.log(2) + np.log(d_sorted) - \
+        #                                np.log(self.d_max**2 - self.d_min**2)
 
         return fmask, base_population
 
@@ -150,6 +197,9 @@ class foreground():
         return amplitude
 
 
+    @staticmethod
+    def calc_Nij(A, noisePSD, wts):
+        return A / (noisePSD + jnp.cumsum(wts*A))
 
 if __name__ == "__main__":
     #fbins = (10**(np.linspace(-5,-2,10)))/u.s
