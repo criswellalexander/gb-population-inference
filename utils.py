@@ -38,3 +38,20 @@ def generate_detector_noise_psd(sample_rate, duration, noise_amplitude):
     noise_psd /= 2
     # psd = TimeSeries(td_noise, times=times).psd()
     return {'frequencies': f, 'noisePSD': noise_psd}
+
+
+
+### Seeded versions of some of the above:
+def generate_time_domain_detector_noise_with_seed(time_array, noise_amplitude, seed=0):
+    rng = np.random.default_rng(seed)
+    noise = rng.normal(size=time_array.size) * noise_amplitude
+    return noise
+
+def generate_detector_noise_psd_with_seed(sample_rate, duration, noise_amplitude, seed=0):
+    deltaT = 1/sample_rate
+    times = np.arange(0, duration, deltaT)
+    td_noise = generate_time_domain_detector_noise_with_seed(times, noise_amplitude, seed=seed)
+    f, noise_psd = welch(td_noise, fs=sample_rate, nperseg=times.size)
+    noise_psd /= 2
+    # psd = TimeSeries(td_noise, times=times).psd()
+    return {'frequencies': f, 'noisePSD': noise_psd}

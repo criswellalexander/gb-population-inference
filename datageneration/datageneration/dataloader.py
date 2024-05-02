@@ -72,7 +72,7 @@ class DataLoader:
         self.__dict__.update(self.loaded_dict)
         self.strain = self.loaded_dict['strain']
         self.time = self.loaded_dict['time']
-        self.injected_population = {col : val[0] for col,val in data.loaded_dict['population_parameters'].to_dict().items()} #self.loaded_dict['injected_population']
+        self.injected_population = {col : val[0] for col,val in self.loaded_dict['population_parameters'].to_dict().items()} #self.loaded_dict['injected_population']
         self.limits = self.loaded_dict['limits']
         self.duration = self.loaded_dict['duration']
         
