@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Union, Dict, Any
 import numpy as np
 import scipy
+from .dataloader import write_nested_to_hdf5
 from .distributions import *
 from .waveforms import *
 import pandas as pd
@@ -35,6 +36,10 @@ class PowerLawChirpPowerLawSeperation:
 	distance_power_law_index : int = 1
 	waveform : AbstractWaveform = field(default_factory = lambda : SineWDSignal)
 	poisson : bool = False
+	sample_rate : float = 0.25
+	duration : float = 10000
+	N_white_dwarfs : int = 1000
+
 
 	def __post_init__(self):
 		def create_distribution(Lambda : Dict[str, float]):
@@ -50,11 +55,38 @@ class PowerLawChirpPowerLawSeperation:
 		return {key : dist.sample(size) for key,dist in self.distribution_func(Lambda).items()}
 
 	def generate_time_series(self, Lambda : Dict[str, float], N_white_dwarfs=1000, **kwargs):
+		N_white_dwarfs = N_white_dwarfs or self.N_white_dwarfs
+		sample_rate = self.sample_rate or kwargs.get('sample_rate', 0.25)
+		duration = self.duration or kwargs.get('duration', 10000)
+
 		if self.poisson:
 			N_white_dwarfs = Poisson(N_white_dwarfs).sample()
-		self._PopulationInjection = self.generate_samples(Lambda, size=N_white_dwarfs)
-		ts, waveforms = self.waveform.generate_waveforms(self._PopulationInjection, **kwargs)
-		return ts, waveforms.sum(axis=-1)
+
+		self.samples_from_population = self.generate_samples(Lambda, size=N_white_dwarfs)
+
+		ts, waveforms = self.waveform.generate_waveforms(self.samples_from_population, sample_rate=sample_rate, duration=duration)
+		strain = waveforms.sum(axis=-1)
+
+		self.samples_from_population = self.waveform.compute_waveform_parameters(self.samples_from_population, in_place=True)
+
+		self.time, self.strain = ts, strain
+		self.sample_rate, self.duration, self.N_white_dwarfs = sample_rate, duration, N_white_dwarfs
+
+		return ts, strain
+
+	def save_to_file(self, filename, extra_parameters={}):
+		data = {'strain' : self.strain, 
+	            'time' : self.time, 
+	            'injected_population' : pd.DataFrame(self.samples_from_population), 
+	            'sample_rate' : self.sample_rate, 
+	            'duration': self.duration,
+	            'limits' : self.limits,
+	            **extra_parameters
+            }
+		
+		write_nested_to_hdf5(data, filename)
+		print(f"Data saved to {filename}")
+
 
 	def plot_time_series(self, ts, Ys):
 		fig, ax = plt.subplots(dpi=150)
@@ -79,8 +111,8 @@ class WhiteDwarfDistribution:
 	def generate_time_series(self, Lambda : Dict[str, float], N_white_dwarfs=1000, **kwargs):
 		if self.poisson:
 			N_white_dwarfs = Poisson(N_white_dwarfs).sample()
-		self._PopulationInjection = self.generate_samples(Lambda, size=N_white_dwarfs)
-		ts, waveforms = self.waveform.generate_waveforms(self._PopulationInjection, **kwargs)
+		self.samples_from_population = self.generate_samples(Lambda, size=N_white_dwarfs)
+		ts, waveforms = self.waveform.generate_waveforms(self.samples_from_population, **kwargs)
 		return ts, waveforms.sum(axis=-1)
 
 	def plot_time_series(self, ts, Ys):

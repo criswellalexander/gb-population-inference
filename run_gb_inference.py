@@ -7,7 +7,8 @@ Created on Wed May  1 12:21:28 2024
 
 ## imports
 import foreground
-from datageneration import load_data ## or whatever 
+from .datageneration import DataLoader
+from .utils import generate_time_domain_detector_noise
 from joint_likelihood import init_engine
 from plotting_chains import plot_chains
 import argparse
@@ -16,13 +17,19 @@ import os
 ## NEED TO ALSO IMPORT THE LIKELIHOOD CODE
 
 
-def run_gb_inference(datafile,outdir,snr_thresh=10):
+def run_gb_inference(datafile,outdir,snr_thresh=10, noise_amplitude=1e-21, noise_seed=0):
     ### load the data
-    ## Asad will write a thing to do this
-    data = load_data(datafile)
-    
+    data = DataLoader(datafile)
+
+    ### Get the true injected values
+    truths = data.population_parameters
+
     ## get the data frequencies
-    fbins = data.fs
+    waveform, times, sample_rate = data.strain, data.time, data.sample_rate
+    noise = generate_time_domain_detector_noise(times, noise_amplitude, noise_seed=0)
+    strain = waveform + noise
+
+    fbins, fft_data = get_rfft(strain, times, sample_rate)
     
     
     ## initialize the population model

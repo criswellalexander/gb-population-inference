@@ -6,3 +6,4 @@ chainconsumer
 h5py
 pandas
 tqdm
+jax[cpu]
