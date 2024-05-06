@@ -65,7 +65,11 @@ class foreground():
         log_wts = [log_p_mc[i] + log_p_r[i] + log_p_d[i] - self.base_population['log_prior'][i] for i, mc in enumerate(log_p_mc)]
 
         wts = [jnp.exp(log_wt) for log_wt in log_wts]
-
+        # Reintroducing this here! Needed since we are dealing with a matrix again.
+        wts = np.where(self.base_population['mc'] == 0, 0, wts)
+        wts = np.where(self.base_population['r'] == 0, 0, wts)
+        wts = np.where(self.base_population['d'] == 0, 0, wts)
+        #
         wt_sum = [jnp.sum(wt) for wt in wts]
         wt_sum = np.sum(wt_sum)   
 
@@ -98,85 +102,41 @@ class foreground():
 
     def _base_population(self):
 
-        mc_draw = np.random.uniform(low=self.mc_min, high=self.mc_max, size=self.ndraw)
-        r_draw = np.random.uniform(low=self.r_min, high=self.r_max, size=self.ndraw)
-        d_draw = np.sqrt(self.d_min**2 + np.random.uniform(size=self.ndraw) * \
+        draw = {}
+        draw['mc'] = np.random.uniform(low=self.mc_min, high=self.mc_max, size=self.ndraw)
+        draw['r'] = np.random.uniform(low=self.r_min, high=self.r_max, size=self.ndraw)
+        draw['d'] = np.sqrt(self.d_min**2 + np.random.uniform(size=self.ndraw) * \
                          (self.d_max**2 - self.d_min**2) )
-
-        f_draw = self.calc_freqs(mc_draw, r_draw).value
-
-
-        A_draw = self.calc_amplitudes(mc_draw, f_draw, d_draw).value
-
-
-        base_population = {}
+        draw['f'] = self.calc_freqs(mc_draw, r_draw).value
+        draw['A'] = self.calc_amplitudes(mc_draw, f_draw, d_draw).value
 
         # Sorting everything by amplitude ahead of masking by freq bin
-        sort_mask = np.argsort(A_draw)
-        A_draw = A_draw[sort_mask]
-        f_draw = f_draw[sort_mask]
-        mc_draw = mc_draw[sort_mask]
-        r_draw = r_draw[sort_mask]
-        d_draw = d_draw[sort_mask]
-
+        sort_mask = np.argsort(draw['A'])
+        for param in draw.keys():
+            draw[param] = draw[param][sort_mask]
 
         fmask = []
-        mc_sorted = []
-        r_sorted = []
-        d_sorted = []
-        A_sorted = []
-        f_sorted = []
-
         # Masking by freq bin
-        # fmask = np.zeros((len(fbins), self.ndraw), dtype='int')
-        #mc_sorted = np.zeros((len(fbins),self.ndraw))
-        #r_sorted = np.zeros((len(fbins),self.ndraw))
-        #d_sorted = np.zeros((len(fbins),self.ndraw))
-        #A_sorted = np.zeros((len(fbins),self.ndraw))
-        #f_sorted = np.zeros((len(fbins),self.ndraw))
-
         for i, fbin in enumerate(fbins):
             fub = self.fmins_ub[i]
             flb = self.fmins_lb[i]
             mask = (f_draw >= flb)*(f_draw < fub)
-
-            mc_sorted.append(mc_draw[mask])
-            r_sorted.append(r_draw[mask])
-            d_sorted.append(d_draw[mask])
-            A_sorted.append(A_draw[mask])
-            f_sorted.append(f_draw[mask])
             fmask.append(mask)
 
-            #fmask[i] = mask
-            #if mask.sum() > 0:
-            #    mc_sorted[i, -mask.sum():] = mc_draw[mask]
-            #    r_sorted[i, -mask.sum():] = r_draw[mask]
-            #    d_sorted[i, -mask.sum():] = d_draw[mask]
-            #    A_sorted[i, -mask.sum():] = A_draw[mask]
-            #    f_sorted[i, -mask.sum():] = f_draw[mask]
+        fmask = np.array(fmask)
+        base_population = {}
+        # Note! This creates an array where each column corresponds to the freq bin and each row to an individual binary.
+        # The entry is zero if the binary is not in the freq bin.
+        for param in draw.keys():
+            base_population[param] = draw[param][:,None].T*fmask
 
-            #print(base_population['A'][mask])
-
-        base_population['mc'] = mc_sorted
-        base_population['r'] = r_sorted
-        base_population['d'] = d_sorted
-        base_population['A'] = A_sorted
-        base_population['f'] = f_sorted
 
         log_prior_constant =  - np.log(self.mc_max - self.mc_min) - \
                                 np.log(self.r_max - self.r_min) - \
                                 np.log(2)  - np.log(self.d_max**2 - self.d_min**2)
+        base_population['log_prior'] = log_prior_constant + jnp.log(base_population['d'])
 
-        base_population['log_prior'] = [log_prior_constant + jnp.log(dl) for dl in d_sorted]
-
-
-
-
-
-        #base_population['log_priors'] =  - np.log(self.mc_max - self.mc_min) - \
-        #                                np.log(self.r_max - self.r_min) - \
-        #                                np.log(2) + np.log(d_sorted) - \
-        #                                np.log(self.d_max**2 - self.d_min**2)
+        #base_population['log_prior'] = [log_prior_constant + jnp.log(dl) for dl in d_sorted]
 
         return fmask, base_population
 
