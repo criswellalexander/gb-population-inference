@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import numpy as np
-from scipy.signal import welch, hann
+from scipy.signal.windows import hann
+from scipy.signal import welch
 from gwpy.timeseries import TimeSeries
 
 def get_resolved_signals_td(parameters, time_array, sample_rate):

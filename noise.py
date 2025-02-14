@@ -59,6 +59,7 @@ def generate_noise_realization(dt,Tobs,noisemodel : LISAModel = lisa_models.sang
     # WARNING: timeseries is not band-limited, goes from dc to nyquist. Should match ffts' PSD with a boxcar window
 
     retdict["timeseries"] += x_new
+    retdict["ts"] = np.linspace(0,Nt*dt,Nt)
     retdict['PSD'] = np.abs(retdict['fft'])**2
     return retdict
 if __name__ == '__main__':
