@@ -16,7 +16,10 @@ def get_resolved_signals(parameters, time_array, sample_rate):
 def get_rfft(data, times, sample_rate):
     fft = jnp.fft.rfft(data) # / data.size
     freqs = jnp.fft.rfftfreq(data.size, d=1/sample_rate)
-    return freqs[1:], fft[1:] / sample_rate
+    if fft.ndim > 1:
+        return freqs[1:], fft[:,1:] / sample_rate
+    else:
+        return freqs[1:], fft[1:] / sample_rate
 
 def construct_separate_signals(amps, freqs, phases, times):
     return amps * jnp.sin(2 * np.pi * freqs * times + phases)
